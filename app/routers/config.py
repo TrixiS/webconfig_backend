@@ -17,9 +17,9 @@ schema = WebConfig.schema()
 
 async def use_config() -> Generator:
     try:
-        yield WebConfig.__instance__
+        yield WebConfig.instance
     finally:
-        await WebConfig.__instance__.save()
+        await WebConfig.instance.save()
 
 
 @router.get("/schema", status_code=200)
@@ -29,12 +29,12 @@ async def get_schema():
 
 @router.get("/config", status_code=200)
 async def get_config():
-    return WebConfig.__instance__.config
+    return WebConfig.instance.config
 
 
 @router.get("/phrases", status_code=200)
 async def get_phrases():
-    return WebConfig.__instance__.phrases
+    return WebConfig.instance.phrases
 
 
 @router.post("/config", status_code=200)
