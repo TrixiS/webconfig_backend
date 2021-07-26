@@ -20,7 +20,7 @@ class BotState(str, Enum):
 
 
 class BotThread(threading.Thread):
-    instance: "BotThread" = None
+    _instance: "BotThread" = None
 
     def __init__(self):
         super().__init__(name=self.__class__.__name__)
@@ -44,7 +44,7 @@ class BotThread(threading.Thread):
         asyncio.set_event_loop(self.loop)
 
         if self.bot is None:
-            self.bot = Bot(WebConfig.instance, loop=self.loop)
+            self.bot = Bot(WebConfig._instance, loop=self.loop)
 
         self.bot.run()
 
@@ -58,19 +58,19 @@ class BotStatus(BaseModel):
 
 @router.get("", status_code=200, response_model=BotStatus)
 async def bot_get():
-    if BotThread.instance is None:
+    if BotThread._instance is None:
         return BotStatus(status=BotState.stopped)
 
-    return BotStatus(status=BotThread.instance.bot_state)
+    return BotStatus(status=BotThread._instance.bot_state)
 
 
 @router.post("/start", status_code=200)
 async def bot_start():
-    if BotThread.instance is not None:
+    if BotThread._instance is not None:
         return
 
-    BotThread.instance = BotThread()
-    BotThread.instance.start()
+    BotThread._instance = BotThread()
+    BotThread._instance.start()
 
     # TODO: send client event on start
     # TODO: use async queue for events
@@ -78,17 +78,17 @@ async def bot_start():
 
 @router.post("/restart", status_code=200)
 async def bot_reload():
-    if BotThread.instance is not None:
-        BotThread.instance.stop()
+    if BotThread._instance is not None:
+        BotThread._instance.stop()
 
-    BotThread.instance = BotThread()
-    BotThread.instance.start()
+    BotThread._instance = BotThread()
+    BotThread._instance.start()
 
 
 @router.post("/stop", status_code=200)
 async def bot_stop():
-    if BotThread.instance is None:
+    if BotThread._instance is None:
         return
 
-    BotThread.instance.stop()
-    BotThread.instance = None
+    BotThread._instance.stop()
+    BotThread._instance = None

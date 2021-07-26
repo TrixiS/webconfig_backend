@@ -22,12 +22,12 @@ if settings.CORS_ORIGINS:
 @app.on_event("startup")
 async def on_startup():
     global web_config
-    WebConfig.instance = await WebConfig.load()
+    WebConfig._instance = await WebConfig.load()
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    await WebConfig.instance.save()
+    await WebConfig._instance.save()
 
-    if bot.BotThread.instance is not None:
-        bot.BotThread.instance.stop()
+    if bot.BotThread._instance is not None:
+        bot.BotThread._instance.stop()

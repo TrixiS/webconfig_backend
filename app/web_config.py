@@ -25,7 +25,7 @@ class Phrases(BaseModel):
 
 
 class WebConfig(BaseModel):
-    instance: "WebConfig" = None
+    _instance: "WebConfig" = None
 
     config: Config = Field(Config(), title="Конфиг")
     phrases: Phrases = Field(Phrases(), title="Фразы")
