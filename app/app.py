@@ -1,14 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import config
+from .routers import config, bot
 from .settings import settings
-from .web_config import load_config, save_config
+from .web_config import WebConfig
 
 app = FastAPI()
 app.include_router(config.router)
-
-web_config = None
+app.include_router(bot.router, prefix="/bot")
 
 if settings.CORS_ORIGINS:
     app.add_middleware(
@@ -23,10 +22,12 @@ if settings.CORS_ORIGINS:
 @app.on_event("startup")
 async def on_startup():
     global web_config
-    web_config = await load_config()
+    WebConfig.__instance__ = await WebConfig.load()
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    global web_config
-    await save_config(web_config)
+    await WebConfig.__instance__.save()
+
+    if bot.BotThread.__instance__ is not None:
+        bot.BotThread.__instance__.stop()

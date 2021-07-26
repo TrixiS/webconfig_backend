@@ -3,8 +3,7 @@ from typing import Generator
 from fastapi import APIRouter
 from fastapi.params import Depends
 
-from app import app
-from ..web_config import WebConfig, Config, Phrases, save_config
+from ..web_config import WebConfig, Config, Phrases
 
 router = APIRouter()
 schema = WebConfig.schema()
@@ -18,9 +17,9 @@ schema = WebConfig.schema()
 
 async def use_config() -> Generator:
     try:
-        yield app.web_config
+        yield WebConfig.__instance__
     finally:
-        await save_config(app.web_config)
+        await WebConfig.__instance__.save()
 
 
 @router.get("/schema", status_code=200)
@@ -30,12 +29,12 @@ async def get_schema():
 
 @router.get("/config", status_code=200)
 async def get_config():
-    return app.web_config.config
+    return WebConfig.__instance__.config
 
 
 @router.get("/phrases", status_code=200)
 async def get_phrases():
-    return app.web_config.phrases
+    return WebConfig.__instance__.phrases
 
 
 @router.post("/config", status_code=200)
