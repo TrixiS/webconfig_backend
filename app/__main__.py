@@ -1,6 +1,10 @@
-import uvicorn
+from uvicorn import Config, Server
 
+from . import loop
 from .app import app
 from .settings import settings
 
-uvicorn.run(app, port=settings.APP_PORT)
+config = Config(app, port=settings.APP_PORT, loop=loop)
+server = Server(config)
+
+loop.run_until_complete(server.serve())

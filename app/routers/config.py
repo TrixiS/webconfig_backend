@@ -8,12 +8,6 @@ from ..web_config import WebConfig, Config, Phrases
 router = APIRouter()
 schema = WebConfig.schema()
 
-# TODO:
-# - endpoint for taking last launch error
-# - browser event for that error
-# - bworter event for start
-# -               and stop
-
 
 async def use_config() -> Generator:
     try:

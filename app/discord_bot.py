@@ -1,11 +1,24 @@
+import asyncio
 import threading
 
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel
 
 from bot.bot import Bot as _Bot
-from .sse import SSEvent
+from .web_config import WebConfig
+
+
+class SSEvent(asyncio.Event):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.data: BaseModel = None
+
+    def send(self, data):
+        self.data = data
+        self.set()
+        self.clear()
 
 
 class BotState(str, Enum):
@@ -20,17 +33,58 @@ class BotState(str, Enum):
 
 
 class BotStatus(BaseModel):
-    id: int
+    id: Optional[int]
     status: BotState
+
+
+class BotThread(threading.Thread):
+    def __init__(self, sse):
+        super().__init__(name=self.__class__.__name__)
+        self.sse: SSEvent = sse
+        self.loop: asyncio.AbstractEventLoop = None
+        self.bot: Bot = None
+
+    @property
+    def bot_state(self) -> BotState:
+        if (
+            self.bot is None
+            or self.bot.is_closed()
+            or not self.loop.is_running()
+            or self.loop.is_closed()
+        ):
+            return BotState.stopped
+
+        if self.bot.is_ready():
+            return BotState.ready
+
+        return BotState.loading
+
+    def run(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        self.sse.send(BotStatus(id=id(self), status=BotState.loading))
+        self.bot = Bot(WebConfig._instance, loop=loop)
+        self.loop = loop
+
+        self.bot.run()
+
+    def stop(self):
+        if self.loop is None:
+            return
+
+        self.loop.create_task(self.bot.close())
+        self.loop = None
+        self.bot = None
 
 
 class Bot(_Bot):
     async def on_ready(self):
         await super().on_ready()
-        thread = threading.current_thread()
-        SSEvent.instance().send(BotStatus(id=id(thread), status=BotState.ready))
+        thread: BotThread = threading.current_thread()
+        thread.sse.send(BotStatus(id=id(thread), status=BotState.ready))
 
     async def close(self):
-        thread = threading.current_thread()
-        SSEvent.instance().send(BotStatus(id=id(thread), status=BotState.stopped))
+        thread: BotThread = threading.current_thread()
+        thread.sse.send(BotStatus(id=id(thread), status=BotState.stopped))
         await super().close()
