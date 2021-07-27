@@ -1,27 +1,18 @@
 import asyncio
 import threading
 
-from enum import Enum
-
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Request
+from sse_starlette.sse import EventSourceResponse
 
 from ..web_config import WebConfig
-from bot.bot import Bot
+from ..singleton import Singleton
+from ..sse import SSEvent
+from ..discord_bot import Bot, BotState, BotStatus
 
 router = APIRouter()
 
 
-class BotState(str, Enum):
-    ready = "ready"
-    loading = "loading"
-    stopped = "stopped"
-    unknown = "unknown"
-
-
-class BotThread(threading.Thread):
-    _instance: "BotThread" = None
-
+class BotThread(threading.Thread, Singleton):
     def __init__(self):
         super().__init__(name=self.__class__.__name__)
         self.loop = asyncio.new_event_loop()
@@ -41,6 +32,10 @@ class BotThread(threading.Thread):
         return BotState.loading
 
     def run(self):
+        SSEvent.instance().send(
+            BotStatus(id=id(BotThread.instance()), status=BotState.loading)
+        )
+
         asyncio.set_event_loop(self.loop)
 
         if self.bot is None:
@@ -52,43 +47,53 @@ class BotThread(threading.Thread):
         self.loop.create_task(self.bot.close())
 
 
-class BotStatus(BaseModel):
-    status: BotState
+async def status_event_generator(request: Request):
+    while True:
+        await SSEvent.instance().wait()
+
+        if await request.is_disconnected():
+            break
+
+        yield {
+            "event": "update",
+            "retry": 30000,
+            "data": SSEvent.instance().data.json(),
+        }
 
 
 @router.get("", status_code=200, response_model=BotStatus)
 async def bot_get():
-    if BotThread._instance is None:
-        return BotStatus(status=BotState.stopped)
+    return BotStatus(id=id(BotThread.instance()), status=BotThread.instance().bot_state)
 
-    return BotStatus(status=BotThread._instance.bot_state)
+
+@router.get("/status")
+async def bot_status_stream(request: Request):
+    event_generator = status_event_generator(request)
+    return EventSourceResponse(event_generator)
 
 
 @router.post("/start", status_code=200)
 async def bot_start():
-    if BotThread._instance is not None:
+    if BotThread.instance().bot_state.running:
         return
 
-    BotThread._instance = BotThread()
-    BotThread._instance.start()
-
-    # TODO: send client event on start
-    # TODO: use async queue for events
+    BotThread.instance(new=True).start()
 
 
 @router.post("/restart", status_code=200)
 async def bot_reload():
-    if BotThread._instance is not None:
-        BotThread._instance.stop()
+    if BotThread.has_instance():
+        BotThread.instance().stop()
 
-    BotThread._instance = BotThread()
-    BotThread._instance.start()
+    BotThread.instance(new=True).start()
 
 
 @router.post("/stop", status_code=200)
 async def bot_stop():
-    if BotThread._instance is None:
+    if (
+        not BotThread.has_instance()
+        or BotThread.instance().bot_state is BotState.stopped
+    ):
         return
 
-    BotThread._instance.stop()
-    BotThread._instance = None
+    BotThread.instance().stop()
