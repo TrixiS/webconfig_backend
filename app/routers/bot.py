@@ -12,7 +12,7 @@ class BotThreadManager:
         self.thread: BotThread = None
 
     def start(self):
-        if self.thread is not None:
+        if self.thread is not None and self.thread.bot_state.running:
             raise HTTPException(400)
 
         self.thread = BotThread(self.sse)
