@@ -73,6 +73,7 @@ class BotThread(threading.Thread):
         if self.loop is None:
             return
 
+        self.sse.send(BotStatus(id=id(self), status=BotState.loading))
         self.loop.create_task(self.bot.close())
         self.loop = None
         self.bot = None
