@@ -18,7 +18,6 @@ class SSEvent(asyncio.Event):
     def send(self, data):
         self.data = data
         self.set()
-        self.clear()
 
 
 class BotState(str, Enum):
@@ -51,6 +50,7 @@ class BotThread(threading.Thread):
             or self.bot.is_closed()
             or not self.loop.is_running()
             or self.loop.is_closed()
+            or not self.is_alive()
         ):
             return BotState.stopped
 
@@ -60,13 +60,10 @@ class BotThread(threading.Thread):
         return BotState.loading
 
     def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
         self.sse.send(BotStatus(id=id(self), status=BotState.loading))
-        self.bot = Bot(WebConfig._instance, loop=loop)
-        self.loop = loop
-
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self.bot = Bot(WebConfig._instance, loop=self.loop)
         self.bot.run()
 
     def stop(self):
