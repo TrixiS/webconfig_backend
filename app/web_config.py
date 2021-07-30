@@ -22,6 +22,7 @@ class Phrases(BaseModel):
     bot_reload: str = Field("Перезапустить")
     bot_kill: str = Field("Остановить")
     save: str = Field("Сохранить")
+    logs: str = Field("Логи")
 
 
 class WebConfig(BaseModel):
