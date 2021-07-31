@@ -18,6 +18,7 @@ class SSEvent(asyncio.Event):
     def send(self, data):
         self.data = data
         self.set()
+        self.clear()
 
 
 class BotState(str, Enum):
