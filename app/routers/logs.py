@@ -2,18 +2,19 @@ import threading
 import traceback
 import logging
 
-from io import StringIO
+import aiofiles
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-exc_buffer = StringIO()
-buffer_handler = logging.StreamHandler(exc_buffer)
+from bot import root_path
+
+log_path = root_path / "logs.log"
 
 logging.basicConfig(
+    filename=str(log_path),
     level=logging.ERROR,
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s",
-    handlers=[buffer_handler],
 )
 
 threading.excepthook = lambda args: logging.error(
@@ -29,8 +30,14 @@ class Logs(BaseModel):
     text: str
 
 
-# TODO: send stream of the log file (dont use buffers)
-@router.get("", status_code=200, response_model=Logs)
+@router.get("", response_model=Logs)
 async def logs_get():
-    exc_buffer.seek(0)
-    return Logs(text=exc_buffer.read())
+    async with aiofiles.open(log_path, "r", encoding="utf-8") as f:
+        logs_text = await f.read()
+        return Logs(text=logs_text.strip())
+
+
+@router.delete("")
+async def logs_delete():
+    async with aiofiles.open(log_path, "w", encoding="utf-8") as f:
+        await f.write("")
