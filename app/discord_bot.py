@@ -78,12 +78,14 @@ class BotThread(threading.Thread):
 
 
 class Bot(_Bot):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.thread: BotThread = threading.current_thread()
+
     async def on_ready(self):
         await super().on_ready()
-        thread: BotThread = threading.current_thread()
-        thread.sse.send(BotStatus(id=id(thread), status=BotState.ready))
+        self.thread.sse.send(BotStatus(id=id(self.thread), status=BotState.ready))
 
     async def close(self):
-        thread: BotThread = threading.current_thread()
-        thread.sse.send(BotStatus(id=id(thread), status=BotState.stopped))
+        self.thread.sse.send(BotStatus(id=id(self.thread), status=BotState.stopped))
         await super().close()
