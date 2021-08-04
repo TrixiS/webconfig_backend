@@ -23,6 +23,7 @@ class Phrases(BaseModel):
     bot_kill: str = Field("Остановить")
     save: str = Field("Сохранить")
     logs: str = Field("Логи")
+    config_error_alert: str = Field("Конфиг заполнен неверно")
 
 
 class WebConfig(BaseModel):
